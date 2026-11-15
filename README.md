@@ -239,3 +239,17 @@ app/src/test/java/...            # 135 个 JVM 单测
   系统 WebView 124 上，依赖它的网页自定义浮窗（例如某些网页应用的自定义长按菜单）会退回到角落位置 —— 这不是 LinkGate 的视图承载问题，
   在「设置 → 应用 → Android System WebView」升级到 125 以上即可恢复（本机 Chrome 已是 147，但未注册为 WebView 提供者）。
 - 站点数据只存本机；换机请用「导出站点配置 → 从剪贴板导入」。
+
+## 许可证
+
+[Apache License 2.0](LICENSE)，版权归 Xehuri 所有（见 [NOTICE](NOTICE)）。
+
+```
+Copyright 2026 Xehuri
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+```
