@@ -20,7 +20,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.imeAnimationTarget
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -98,6 +101,7 @@ private const val MAX_AUTO_RECOVER = 2
  *
  * 返回键语义见 [BackPlanner]：入口落地页 → 回站点列表；否则回网页上一级。
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun WebScreen(
     site: Site,
@@ -289,7 +293,9 @@ fun WebScreen(
             .background(MaterialTheme.colorScheme.background)
             // edge-to-edge 下 adjustResize 不生效，必须自己处理 IME insets，
             // 否则网页里的输入框与登录按钮会被软键盘挡住。
-            .imePadding(),
+            // 用「动画目标值」而不是逐帧动画值：否则键盘弹出动画的每一帧都会改变 WebView 尺寸，
+            // 重页面（如 dsh）会逐帧重排，直接把主线程拖死。
+            .windowInsetsPadding(WindowInsets.imeAnimationTarget),
     ) {
         key(webViewGeneration) {
             AndroidView(

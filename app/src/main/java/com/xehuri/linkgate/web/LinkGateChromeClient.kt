@@ -9,6 +9,7 @@ import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebView
+import com.xehuri.linkgate.BuildConfig
 import com.xehuri.linkgate.perm.PermNames
 import com.xehuri.linkgate.perm.RuntimePermissions
 
@@ -100,7 +101,9 @@ class LinkGateChromeClient(private val host: WebHost) : WebChromeClient() {
     }
 
     override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
-        if (consoleMessage != null) {
+        // 只在调试包打日志：这在 WebView→Java 的 JNI 回调里执行，正式包每打一条都要走一次 logd，
+        // 页面控制台输出多时（例如 dsh 这种重度 SPA）会明显增加主线程负担。
+        if (BuildConfig.DEBUG && consoleMessage != null) {
             Log.d(TAG, "[web] ${consoleMessage.message()} @${consoleMessage.lineNumber()}")
         }
         return true

@@ -216,8 +216,15 @@
     }, true);
 
     try {
+      // 去抖：重度 SPA（聊天流式输出）每秒可能产生成百上千次 DOM 变动，
+      // 每次都整篇 querySelectorAll 会把渲染线程拖满。这里合并成最多每 500ms 查一次。
+      var fillTimer = null;
       observer = new MutationObserver(function () {
-        if (passwordFields().length) requestFill();
+        if (fillTimer !== null) return;
+        fillTimer = setTimeout(function () {
+          fillTimer = null;
+          if (passwordFields().length) requestFill();
+        }, 500);
       });
       observer.observe(document.documentElement, { childList: true, subtree: true });
     } catch (e) { /* ignore */ }
