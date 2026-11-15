@@ -116,6 +116,7 @@ fun WebScreen(
             homeUrl = plan.url,
             primaryUrl = site.url,
             fallbackUrl = plan.fallbackUrl,
+            siteTitle = site.title,
         )
     }
 

@@ -27,6 +27,8 @@ class WebHost(
     val primaryUrl: String = homeUrl,
     /** 回退地址：IPv6 备用地址打不开时改用主地址；null 表示没有回退 */
     val fallbackUrl: String? = null,
+    /** 站点名，用于下载记录里标注来源 */
+    val siteTitle: String = "",
 ) {
     var webView: WebView? = null
     var currentUrl: String? = null

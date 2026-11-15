@@ -388,8 +388,8 @@ fun SettingsScreen(
                     )
                     Divider()
                     ActionRow(
-                        title = "打开下载目录",
-                        summary = "网页下载的文件都保存在系统「下载」目录里",
+                        title = "下载管理",
+                        summary = "查看下载历史、打开文件或清理记录",
                         onClick = onOpenDownloads,
                     )
                 }

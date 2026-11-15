@@ -6,9 +6,9 @@ Cookie 会落盘并按站点恢复；内置密码管理器（保存 + 自动填�
 
 - 应用名：**LinkGate**
 - 包名：`com.xehuri.linkgate`
-- 版本：1.1.1（versionCode 7）
+- 版本：1.1.2（versionCode 8）
 - minSdk 26（Android 8.0）/ targetSdk 34 / compileSdk 36
-- 安装包：`dist/LinkGate-1.1.1.apk`（release，已用专用密钥签名）
+- 安装包：`dist/LinkGate-1.1.2.apk`（release，已用专用密钥签名）
 
 ## 功能
 
@@ -121,12 +121,19 @@ Manifest 预先声明：`RECORD_AUDIO`、`CAMERA`、`ACCESS_FINE/COARSE_LOCATION
 | `data:` | `<a download href="data:...">` 内嵌文件 | 页面内由同一脚本接管；直接导航到 data: 时由 `DataUrl` 原生解码 |
 
 - 保存：Android 10+ 走 MediaStore（出现在「下载」应用/文件管理器，无需存储权限），8/9 写公共 Downloads 目录；
-- 完成提示：发一条「下载完成」通知（点击打开下载目录）+ 页面内 toast「已保存到…」；
-- 入口：设置 → 数据 → **打开下载目录**，网页控制条「更多」→ 打开下载目录；
-- 限制：单文件 64MB（内存中分片转发）、`blob:` 仅拦截带 `download` 属性的链接（没有该属性的 blob 链接是「页面内预览」，不接管）。
+- **完成即问**：应用在前台时弹「下载完成 —— 要现在打开吗？」（打开 / 稍后 / 下载管理）；
+  后台完成则发「下载完成」通知，点通知直接打开文件，附「打开下载目录」按钮；
+- **下载管理器**（首屏右上角下载图标，或设置 → 数据 → 下载管理）：历史列表带类型色块、站点名、大小、时间；
+  点一条直接打开；条目菜单可「只删记录」或「删除记录和文件」；顶栏菜单可「打开系统下载目录 / 清空记录」；
+- 历史合并了系统 DownloadManager 的任务：App 被杀之后在后台完成的下载，重新打开管理器时会自动补录；
+  被用户删掉的记录会记进 hidden 集合，不会被再次补回来；
+- 入口：首屏图标、设置 → 数据 → 下载管理，网页控制条「更多」→ 打开下载目录；
+- 限制：单文件 64MB（内存中分片转发）、`blob:` 仅拦截带 `download` 属性的链接（没有该属性的 blob 链接是「页面内预览」，不接管）；
+  DownloadManager 的 cursor 在 Android 10+ 不允许读本地路径，打开文件统一走「文件名 → MediaStore 反查 content uri」。
 
 真机验证（Android 13 / WebView 124）：`report.txt`（DownloadManager）、`导出数据.csv`（blob，32 字节含 BOM）、
-`内嵌文件.txt`（data:, 18 字节）三者都出现在 `/sdcard/Download/` 且内容正确。
+`内嵌文件.txt`（data:, 18 字节）三者都出现在 `/sdcard/Download/` 且内容正确；
+三种通路完成时都弹了「是否打开」，点「打开」能拉起系统选择器；下载管理器里能看到、能打开、能删（只删记录时文件仍在）。
 
 ### 10. 稳定性与数据安全
 
@@ -166,7 +173,7 @@ feature-detect 后补齐：`AbortSignal.any/timeout`、`Promise.withResolvers/tr
 ```bash
 cd linkgate
 ./gradlew :app:assembleDebug          # 调试包
-./gradlew :app:testDebugUnitTest      # 纯 JVM 单测（135 个）
+./gradlew :app:testDebugUnitTest      # 纯 JVM 单测（141 个）
 ./gradlew :app:lintDebug              # 静态检查（0 errors）
 ./gradlew :app:assembleRelease        # 未签名 release
 ```
@@ -182,7 +189,7 @@ PASS=$(cat keystore/.storepass)
 $BT/zipalign -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk /tmp/LinkGate-aligned.apk
 $BT/apksigner sign --ks keystore/linkgate-release.jks --ks-key-alias linkgate \
   --ks-pass "pass:$PASS" --key-pass "pass:$PASS" \
-  --out dist/LinkGate-1.1.1.apk /tmp/LinkGate-aligned.apk
+  --out dist/LinkGate-1.1.2.apk /tmp/LinkGate-aligned.apk
 ```
 
 > 换签名密钥会导致无法覆盖升级。请保留 `keystore/linkgate-release.jks` 与 `.storepass`（均在 `.gitignore` 内）。
@@ -190,7 +197,7 @@ $BT/apksigner sign --ks keystore/linkgate-release.jks --ks-key-alias linkgate \
 ## 安装
 
 ```bash
-adb install -r dist/LinkGate-1.1.1.apk
+adb install -r dist/LinkGate-1.1.2.apk
 ```
 
 首次启动会连续弹出系统权限对话框，全部允许即可。
@@ -210,7 +217,7 @@ app/src/main/java/com/xehuri/linkgate/
                                  # 两指连点状态机、兼容垫片注入、密码桥（WebMessageListener）
 app/src/main/assets/             # web-compat.js（现代 API 垫片）、web-passwords.js（表单保存/填充脚本）
 app/src/main/res/xml/            # backup_rules.xml、data_extraction_rules.xml（备份排除敏感数据）
-app/src/test/java/...            # 135 个 JVM 单测
+app/src/test/java/...            # 141 个 JVM 单测
 ```
 
 ## 版本记录
@@ -224,6 +231,9 @@ app/src/test/java/...            # 135 个 JVM 单测
   （网页参数 / 渲染模式 / UA / 手势 / 数据 / 系统）；**双指连点唤醒**（默认 2 次，可配 1–3 次）；
   桌面版视口强制 980px；站点搜索、下移、复制链接、刷新图标、清除本站数据；导出/导入站点；
   渲染进程崩溃恢复；Cookie 快照改增量写；键盘避让；后台暂停页面；备份排除 Cookie 与密码；有图标不再垫色块底。
+- 1.1.2：**下载完成提示**（应用内「是否打开」弹窗 + 通知点击直达文件）；**下载管理器**（历史列表、
+  打开文件、删记录/删文件、清空、合并系统 DownloadManager 任务并记住已删除项）；修复 Android 10+ 读
+  `COLUMN_LOCAL_FILENAME` 抛 `SecurityException` 导致「下载管理」闪退；改用「文件名 → MediaStore 反查」打开文件。
 - 1.1.1：**文件下载支持**（DownloadManager + blob 消息桥 + data: 原生解码，落系统下载目录 + 完成通知 + 下载目录入口）；
   首屏长按浮窗改为**在手指位置弹出**（放不下时自动翻转），不再固定屏幕角落。
 

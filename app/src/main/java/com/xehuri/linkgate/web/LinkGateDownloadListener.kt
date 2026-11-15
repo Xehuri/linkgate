@@ -8,6 +8,7 @@ import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.DownloadListener
 import com.xehuri.linkgate.data.DataUrl
+import com.xehuri.linkgate.data.DownloadRecord
 import java.net.URLDecoder
 
 /**
@@ -43,14 +44,19 @@ class LinkGateDownloadListener(private val host: WebHost) : DownloadListener {
             return
         }
         val fileName = guessFileName(url, contentDisposition)
+        var downloadId = -1L
         val enqueued = runCatching {
-            manager.enqueue(buildRequest(url, userAgent, mimetype, fileName, publicDir = true))
+            downloadId = manager.enqueue(buildRequest(url, userAgent, mimetype, fileName, publicDir = true))
             true
         }.getOrElse {
             runCatching {
-                manager.enqueue(buildRequest(url, userAgent, mimetype, fileName, publicDir = false))
+                downloadId = manager.enqueue(buildRequest(url, userAgent, mimetype, fileName, publicDir = false))
                 true
             }.getOrDefault(false)
+        }
+        if (enqueued && downloadId > 0) {
+            // 记住这次下载属于哪个页面/站点，完成广播里补进历史记录
+            DownloadCenter.rememberDmContext(downloadId, host.currentUrl ?: url, host.siteTitle)
         }
         host.onNotice(if (enqueued) "已开始下载：$fileName" else "下载失败，可长按链接复制后用浏览器下载")
     }
@@ -62,14 +68,28 @@ class LinkGateDownloadListener(private val host: WebHost) : DownloadListener {
             return
         }
         val appContext = host.appContext
+        val pageUrl = host.currentUrl ?: host.homeUrl
+        val siteTitle = host.siteTitle
         Thread({
             val saved = DownloadSaver.save(appContext, decoded.fileName, decoded.mime, decoded.bytes)
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 if (saved == null) {
                     host.onNotice("内嵌文件保存失败")
                 } else {
+                    val record = DownloadRecord(
+                        id = "dl:${System.currentTimeMillis()}-${saved.displayName.hashCode()}",
+                        name = saved.displayName,
+                        mime = decoded.mime,
+                        size = decoded.bytes.size.toLong(),
+                        uri = saved.uri,
+                        pageUrl = pageUrl,
+                        siteTitle = siteTitle,
+                        createdAt = System.currentTimeMillis(),
+                        ok = true,
+                    )
+                    DownloadCenter.publish(appContext, record)
+                    DownloadSaver.notifySaved(appContext, record)
                     host.onNotice("已保存到${saved.location}")
-                    DownloadSaver.notifySaved(appContext, saved)
                 }
             }
         }, "linkgate-download-data").start()

@@ -8,6 +8,7 @@ import android.webkit.WebView
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewCompat
+import com.xehuri.linkgate.data.DownloadRecord
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.util.Base64
@@ -103,14 +104,43 @@ class DownloadBridge(
         }
         Log.d(TAG, "接收完成 ${item.name} (${bytes.size} 字节)")
         val appContext = context.applicationContext
+        val pageUrl = host.currentUrl ?: host.homeUrl
+        val siteTitle = host.siteTitle
         Thread({
             val saved = DownloadSaver.save(appContext, item.name, item.mime, bytes)
             main.post {
                 if (saved == null) {
                     host.onNotice("下载保存失败：${item.name}")
+                    DownloadCenter.publish(
+                        appContext,
+                        DownloadRecord(
+                            id = "dl:${System.currentTimeMillis()}",
+                            name = item.name,
+                            mime = item.mime,
+                            size = bytes.size.toLong(),
+                            uri = "",
+                            pageUrl = pageUrl,
+                            siteTitle = siteTitle,
+                            createdAt = System.currentTimeMillis(),
+                            ok = false,
+                        ),
+                        notifyUi = false,
+                    )
                 } else {
+                    val record = DownloadRecord(
+                        id = "dl:${System.currentTimeMillis()}-${saved.displayName.hashCode()}",
+                        name = saved.displayName,
+                        mime = item.mime,
+                        size = bytes.size.toLong(),
+                        uri = saved.uri,
+                        pageUrl = pageUrl,
+                        siteTitle = siteTitle,
+                        createdAt = System.currentTimeMillis(),
+                        ok = true,
+                    )
+                    DownloadCenter.publish(appContext, record)
+                    DownloadSaver.notifySaved(appContext, record)
                     host.onNotice("已保存到${saved.location}")
-                    DownloadSaver.notifySaved(appContext, saved)
                 }
             }
         }, "linkgate-download-save").start()

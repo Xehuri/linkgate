@@ -12,7 +12,18 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -23,6 +34,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.xehuri.linkgate.BuildConfig
 import com.xehuri.linkgate.data.AppSettings
+import com.xehuri.linkgate.data.DownloadRecord
+import com.xehuri.linkgate.data.DownloadStore
 import com.xehuri.linkgate.data.IconStore
 import com.xehuri.linkgate.data.Ipv6
 import com.xehuri.linkgate.data.PasswordEntry
@@ -37,6 +50,8 @@ import com.xehuri.linkgate.nav.OpenTargetPlanner
 import com.xehuri.linkgate.perm.PermissionPlanner
 import com.xehuri.linkgate.perm.RuntimePermissions
 import com.xehuri.linkgate.web.CookieStore
+import com.xehuri.linkgate.web.DownloadCenter
+import com.xehuri.linkgate.web.DownloadWatcher
 import com.xehuri.linkgate.web.DownloadSaver
 import com.xehuri.linkgate.web.SiteDataCleaner
 import com.xehuri.linkgate.web.WebViewFactory
@@ -66,6 +81,9 @@ fun LinkGateApp(store: SiteStore, settingsStore: SettingsStore, onExit: () -> Un
     var openSiteId by rememberSaveable { mutableStateOf<String?>(null) }
     var openPlan by remember { mutableStateOf<OpenTargetPlanner.Plan?>(null) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
+    var showDownloads by rememberSaveable { mutableStateOf(false) }
+    var downloadRecords by remember { mutableStateOf(DownloadStore(context).all()) }
+    var pendingDownload by remember { mutableStateOf<DownloadRecord?>(null) }
     var granted by remember { mutableStateOf(RuntimePermissions.granted(context)) }
     var showPermissionDialog by remember { mutableStateOf(false) }
     var iconVersion by remember { mutableIntStateOf(0) }
@@ -148,6 +166,21 @@ fun LinkGateApp(store: SiteStore, settingsStore: SettingsStore, onExit: () -> Un
         if (anySaved) withContext(Dispatchers.Main) { iconVersion++ }
     }
 
+    // 下载完成 → 刷新历史 + 弹「是否打开」；同时监听系统 DownloadManager 的完成广播
+    DisposableEffect(Unit) {
+        val listener: (DownloadRecord) -> Unit = { record ->
+            downloadRecords = DownloadStore(context).all()
+            if (record.ok) pendingDownload = record
+        }
+        DownloadCenter.addListener(listener)
+        val watcher = DownloadWatcher(context.applicationContext)
+        watcher.start { }
+        onDispose {
+            DownloadCenter.removeListener(listener)
+            watcher.stop()
+        }
+    }
+
     LinkGateTheme(darkTheme = darkTheme) {
         val activeSite = sites.firstOrNull { it.id == openSiteId }
 
@@ -209,6 +242,32 @@ fun LinkGateApp(store: SiteStore, settingsStore: SettingsStore, onExit: () -> Un
         }
 
         when {
+            showDownloads -> DownloadManagerScreen(
+                records = downloadRecords,
+                onBack = { showDownloads = false },
+                onOpen = { record ->
+                    if (!DownloadCenter.open(context, record)) {
+                        toast("没有能打开该文件的应用")
+                    }
+                },
+                onDelete = { record, deleteFile ->
+                    downloadRecords = DownloadCenter.remove(context, record, deleteFile)
+                    toast(if (deleteFile) "已删除记录和文件" else "已删除记录")
+                },
+                onClearAll = {
+                    val dmIds = downloadRecords.filter { it.id.startsWith("dm:") }.map { it.id }
+                    val store = DownloadStore(context)
+                    store.hideDmIds(dmIds)
+                    downloadRecords = store.clear()
+                    toast("下载记录已清空")
+                },
+                onOpenSystemDownloads = {
+                    if (!DownloadSaver.openDownloadsUi(context)) {
+                        toast("没有找到可用的文件管理器")
+                    }
+                },
+            )
+
             showSettings -> SettingsScreen(
                 settings = settings,
                 onChange = { updateSettings(it) },
@@ -229,9 +288,10 @@ fun LinkGateApp(store: SiteStore, settingsStore: SettingsStore, onExit: () -> Un
                 onExportSites = { exportSites() },
                 onImportSites = { importSites() },
                 onOpenDownloads = {
-                    if (!DownloadSaver.openDownloadsUi(context)) {
-                        toast("没有找到可用的文件管理器")
-                    }
+                    DownloadCenter.syncFromDownloadManager(context)
+                    downloadRecords = DownloadStore(context).all()
+                    showSettings = false
+                    showDownloads = true
                 },
             )
 
@@ -312,6 +372,11 @@ fun LinkGateApp(store: SiteStore, settingsStore: SettingsStore, onExit: () -> Un
                     passwordEntries = PasswordStore(context).all()
                     showPasswordManager = true
                 },
+                onOpenDownloads = {
+                    DownloadCenter.syncFromDownloadManager(context)
+                    downloadRecords = DownloadStore(context).all()
+                    showDownloads = true
+                },
                 onOpenSettings = {
                     granted = RuntimePermissions.granted(context)
                     showSettings = true
@@ -334,6 +399,45 @@ fun LinkGateApp(store: SiteStore, settingsStore: SettingsStore, onExit: () -> Un
                     },
                 )
             }
+        }
+
+        pendingDownload?.let { record ->
+            AlertDialog(
+                onDismissRequest = { pendingDownload = null },
+                title = { Text("下载完成") },
+                text = {
+                    Column {
+                        Text(record.name, style = MaterialTheme.typography.bodyLarge)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = record.summary(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("要现在打开吗？", style = MaterialTheme.typography.bodyMedium)
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        pendingDownload = null
+                        if (!DownloadCenter.open(context, record)) {
+                            toast("没有能打开该文件的应用")
+                        }
+                    }) { Text("打开") }
+                },
+                dismissButton = {
+                    Row {
+                        TextButton(onClick = {
+                            pendingDownload = null
+                            showDownloads = true
+                        }) { Text("下载管理") }
+                        TextButton(onClick = { pendingDownload = null }) {
+                            Text("稍后")
+                        }
+                    }
+                },
+            )
         }
 
         if (showPasswordManager) {

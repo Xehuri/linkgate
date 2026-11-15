@@ -72,6 +72,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
+import com.xehuri.linkgate.R
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -110,6 +112,7 @@ fun HomeScreen(
     onClearSiteData: (Site) -> Unit,
     onOpenPermissions: () -> Unit,
     onOpenPasswordManager: () -> Unit,
+    onOpenDownloads: () -> Unit,
     onOpenSettings: () -> Unit,
     onExit: () -> Unit,
 ) {
@@ -148,6 +151,12 @@ fun HomeScreen(
                     )
                 },
                 actions = {
+                    IconButton(onClick = onOpenDownloads) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_download),
+                            contentDescription = "下载管理",
+                        )
+                    }
                     IconButton(onClick = onOpenPasswordManager) {
                         Icon(Icons.Filled.Person, contentDescription = "已保存的密码")
                     }
