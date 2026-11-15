@@ -37,6 +37,7 @@ import com.xehuri.linkgate.nav.OpenTargetPlanner
 import com.xehuri.linkgate.perm.PermissionPlanner
 import com.xehuri.linkgate.perm.RuntimePermissions
 import com.xehuri.linkgate.web.CookieStore
+import com.xehuri.linkgate.web.SiteDataCleaner
 import com.xehuri.linkgate.web.WebViewFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -276,6 +277,22 @@ fun LinkGateApp(store: SiteStore, settingsStore: SettingsStore, onExit: () -> Un
                     iconFetchAttempted.remove(site.id)
                     iconVersion++
                     toast("已重新抓取图标")
+                },
+                onClearSiteData = { site ->
+                    val failures = SiteDataCleaner.clearSite(
+                        context = context,
+                        site = site,
+                        currentUrl = null,
+                        webView = null,
+                    )
+                    val removed = SiteDataCleaner.clearPasswords(context, site)
+                    val message = when {
+                        failures.isNotEmpty() -> "部分数据未能清除：${failures.joinToString("、")}"
+                        removed > 0 -> "已清除「${site.title}」的数据与 $removed 条密码"
+                        else -> "已清除「${site.title}」的数据"
+                    }
+                    toast(message)
+                    // 图标不用清：它只是展示用途，清掉反而让卡片变回顾色块
                 },
                 onCopyLink = { site ->
                     clipboard?.setPrimaryClip(ClipData.newPlainText("LinkGate", site.url))

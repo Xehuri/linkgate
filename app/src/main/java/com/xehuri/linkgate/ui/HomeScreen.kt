@@ -54,6 +54,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -92,6 +93,7 @@ fun HomeScreen(
     onMoveDown: (Site) -> Unit,
     onRefreshIcon: (Site) -> Unit,
     onCopyLink: (Site) -> Unit,
+    onClearSiteData: (Site) -> Unit,
     onOpenPermissions: () -> Unit,
     onOpenPasswordManager: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -100,6 +102,7 @@ fun HomeScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var editingSite by remember { mutableStateOf<Site?>(null) }
     var deletingSite by remember { mutableStateOf<Site?>(null) }
+    var clearingSite by remember { mutableStateOf<Site?>(null) }
     var query by remember { mutableStateOf("") }
 
     BackHandler { onExit() }
@@ -208,6 +211,7 @@ fun HomeScreen(
                                 onEdit = { editingSite = site },
                                 onCopyLink = { onCopyLink(site) },
                                 onRefreshIcon = { onRefreshIcon(site) },
+                                onClearSiteData = { clearingSite = site },
                                 onDelete = { deletingSite = site },
                             )
                         }
@@ -239,6 +243,17 @@ fun HomeScreen(
         )
     }
 
+    clearingSite?.let { site ->
+        ClearSiteDataDialog(
+            site = site,
+            onDismiss = { clearingSite = null },
+            onConfirm = {
+                clearingSite = null
+                onClearSiteData(site)
+            },
+        )
+    }
+
     deletingSite?.let { site ->
         DeleteSiteDialog(
             site = site,
@@ -263,6 +278,7 @@ private fun SiteCard(
     onEdit: () -> Unit,
     onCopyLink: () -> Unit,
     onRefreshIcon: () -> Unit,
+    onClearSiteData: () -> Unit,
     onDelete: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
@@ -366,6 +382,14 @@ private fun SiteCard(
                 },
             )
             DropdownMenuItem(
+                text = { Text("清除本站数据") },
+                leadingIcon = { Icon(Icons.Filled.Clear, contentDescription = null) },
+                onClick = {
+                    menuOpen = false
+                    onClearSiteData()
+                },
+            )
+            DropdownMenuItem(
                 text = { Text("删除") },
                 leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
                 onClick = {
@@ -462,4 +486,30 @@ private fun EmptyState(onAdd: () -> Unit, modifier: Modifier = Modifier) {
             Text("添加第一个网页")
         }
     }
+}
+
+@Composable
+private fun ClearSiteDataDialog(
+    site: Site,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("清除「${site.title}」的数据？") },
+        text = {
+            Text(
+                "会清除该站点的 Cookie、本地存储、缓存与已保存的密码，之后需要重新登录。" +
+                    "站点本身仍保留在列表里。",
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("清除", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
 }

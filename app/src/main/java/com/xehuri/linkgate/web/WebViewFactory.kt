@@ -85,6 +85,11 @@ object WebViewFactory {
         // 老系统 WebView（如 Chrome 104）缺少 AbortSignal.any 等新 API，先注入兼容垫片
         WebCompat.install(context, webView)
 
+        // 桌面版网站模式：强制 980px 布局宽度（详见 DesktopViewport 的说明）
+        if (settings.sanitized().viewMode == ViewMode.DESKTOP) {
+            DesktopViewport.apply(webView)
+        }
+
         // 密码桥：用 WebMessageListener（原生能拿到不可伪造的 sourceOrigin），
         // 页面只能查询/保存自己 origin 下的凭据。
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
@@ -151,6 +156,13 @@ object WebViewFactory {
         runCatching {
             CookieManager.getInstance().setAcceptThirdPartyCookies(webView, s.thirdPartyCookies)
         }
+        Log.d(
+            TAG,
+            "应用 WebView 参数: view=${s.viewMode} uaMode=${s.userAgentMode} zoom=${s.zoomEnabled} " +
+                "js=${s.javaScriptEnabled} images=${s.loadImages} cache=${s.cacheMode} " +
+                "mixed=${s.mixedContent} textZoom=${s.textZoomPercent} hw=${s.hardwareAcceleration} " +
+                "dark=${s.darkMode} ua=${s.userAgentMode}",
+        )
         // 渲染后端：默认不额外加层（走硬件加速）；关掉时强制软件渲染
         webView.setLayerType(
             if (s.hardwareAcceleration) View.LAYER_TYPE_NONE else View.LAYER_TYPE_SOFTWARE,

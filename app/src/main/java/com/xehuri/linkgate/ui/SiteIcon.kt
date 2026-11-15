@@ -50,11 +50,14 @@ fun SiteIcon(
         bitmap = withContext(Dispatchers.IO) { IconStore(context).load(site.id) }
     }
 
+    val image = bitmap
+    // 有网站图标时不再加色块底：图标本身通常已经带品牌底色或透明边，
+    // 再垫一层主题色会显得脏；只有「首字母兜底」才需要色块保证可读性。
+    val background = if (image == null) Modifier.background(accent) else Modifier
     Box(
-        modifier = Modifier.size(size).clip(CircleShape).background(accent),
+        modifier = Modifier.size(size).clip(CircleShape).then(background),
         contentAlignment = Alignment.Center,
     ) {
-        val image = bitmap
         if (image != null) {
             Image(
                 bitmap = image.asImageBitmap(),

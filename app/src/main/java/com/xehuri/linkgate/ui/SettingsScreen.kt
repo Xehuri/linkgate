@@ -118,15 +118,19 @@ fun SettingsScreen(
                         onCheckedChange = { onChange(settings.copy(preferIpv6 = it)) },
                     )
                     Divider()
-                    InfoRow(
-                        title = "本机 IPv6 状态",
-                        value = when {
-                            deviceIpv6Available && deviceIpv6Address != null ->
-                                "可用（$deviceIpv6Address）"
-                            deviceIpv6Available -> "可用"
-                            else -> "当前网络没有 IPv6"
-                        },
-                    )
+                    Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                        Text("本机 IPv6 状态", style = MaterialTheme.typography.bodyLarge)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = when {
+                                deviceIpv6Available && deviceIpv6Address != null -> "可用：$deviceIpv6Address"
+                                deviceIpv6Available -> "可用"
+                                else -> "当前网络没有 IPv6"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
 
