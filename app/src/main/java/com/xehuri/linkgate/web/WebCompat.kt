@@ -21,7 +21,7 @@ import androidx.webkit.WebViewFeature
 object WebCompat {
 
     private const val TAG = "LinkGateCompat"
-    private val ASSET_NAMES = listOf("web-compat.js", "web-passwords.js")
+    private val ASSET_NAMES = listOf("web-compat.js", "web-passwords.js", "web-downloads.js")
 
     @Volatile
     private var cachedScript: String? = null

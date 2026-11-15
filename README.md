@@ -6,9 +6,9 @@ Cookie 会落盘并按站点恢复；内置密码管理器（保存 + 自动填�
 
 - 应用名：**LinkGate**
 - 包名：`com.xehuri.linkgate`
-- 版本：1.1.0（versionCode 6）
+- 版本：1.1.1（versionCode 7）
 - minSdk 26（Android 8.0）/ targetSdk 34 / compileSdk 36
-- 安装包：`dist/LinkGate-1.1.0.apk`（release，已用专用密钥签名）
+- 安装包：`dist/LinkGate-1.1.1.apk`（release，已用专用密钥签名）
 
 ## 功能
 
@@ -21,7 +21,8 @@ Cookie 会落盘并按站点恢复；内置密码管理器（保存 + 自动填�
 - 标题最多两行；**副标题优先显示描述**（没填描述时显示域名）；配了 IPv6 地址的站点带 `IPv6` 标记；
 - **搜索过滤**：站点 ≥ 6 个时顶部出现搜索框，按标题/描述/网址过滤，无结果有独立空态；
 - 右下角「添加网页」：网址（自动补 `https://`）、名称、**IPv6 地址（可选）**、**描述（可选）**，支持粘贴剪贴板；
-- 长按卡片：**置顶 / 上移 / 下移 / 编辑 / 复制链接 / 刷新图标 / 清除本站数据 / 删除**；
+- 长按卡片：**置顶 / 上移 / 下移 / 编辑 / 复制链接 / 刷新图标 / 清除本站数据 / 删除**，
+  浮窗**弹在手指按下的位置**（和 Chrome 一致：右下角放不下时自动翻到左上），不再固定挤在屏幕角落；
 - 右上角两个入口：**已保存的密码**、**设置**；
 - 夜间模式跟随系统。
 
@@ -109,7 +110,25 @@ Manifest 预先声明：`RECORD_AUDIO`、`CAMERA`、`ACCESS_FINE/COARSE_LOCATION
 - 网页内 `onPermissionRequest` 只要 App 已有系统权限就直接 `grant`；定位自动允许；
 - 被拒时列表页顶部横幅提示，可补申请或跳系统设置。
 
-### 9. 稳定性与数据安全
+### 9. 文件下载
+
+网页里的下载分三条通路，都落到系统「下载」目录：
+
+| 通路 | 触发场景 | 实现 |
+| --- | --- | --- |
+| 普通附件 | 服务端返回 `Content-Disposition: attachment` | 交给系统 `DownloadManager`（带 Cookie / UA / Referer，失败回退应用私有目录） |
+| `blob:` | 现代网页 `URL.createObjectURL(blob)` + `<a download>`、`window.open(blob)` | 注入 `assets/web-downloads.js` 读成字节 → 分片 base64 → `LinkGateDownload` 消息桥 → 原生写盘 |
+| `data:` | `<a download href="data:...">` 内嵌文件 | 页面内由同一脚本接管；直接导航到 data: 时由 `DataUrl` 原生解码 |
+
+- 保存：Android 10+ 走 MediaStore（出现在「下载」应用/文件管理器，无需存储权限），8/9 写公共 Downloads 目录；
+- 完成提示：发一条「下载完成」通知（点击打开下载目录）+ 页面内 toast「已保存到…」；
+- 入口：设置 → 数据 → **打开下载目录**，网页控制条「更多」→ 打开下载目录；
+- 限制：单文件 64MB（内存中分片转发）、`blob:` 仅拦截带 `download` 属性的链接（没有该属性的 blob 链接是「页面内预览」，不接管）。
+
+真机验证（Android 13 / WebView 124）：`report.txt`（DownloadManager）、`导出数据.csv`（blob，32 字节含 BOM）、
+`内嵌文件.txt`（data:, 18 字节）三者都出现在 `/sdcard/Download/` 且内容正确。
+
+### 10. 稳定性与数据安全
 
 - **渲染进程崩溃兜底**：`WebViewClient.onRenderProcessGone` 返回 true 并重建 WebView（最多自动重试 2 次），
   避免系统把整个 App 杀掉（以前表现为闪退）；
@@ -119,7 +138,7 @@ Manifest 预先声明：`RECORD_AUDIO`、`CAMERA`、`ACCESS_FINE/COARSE_LOCATION
   不含任何 Cookie 与密码；导入按网址去重、id 冲突自动重生成，不会覆盖已有站点；
 - **清除数据**：全局（设置页）与单站点（长按菜单 / 网页控制条）两个层级，清 Cookie、快照、本地存储、缓存、表单与已存密码。
 
-### 10. 老版系统 WebView 兼容垫片
+### 11. 老版系统 WebView 兼容垫片
 
 部分设备（如小米平板 5，WebView **104**）缺少 dsh 客户端插件使用的现代 API，会报
 `TypeError: AbortSignal.any is not a function` —— 页面渲染出来但功能不可用。
@@ -147,7 +166,7 @@ feature-detect 后补齐：`AbortSignal.any/timeout`、`Promise.withResolvers/tr
 ```bash
 cd linkgate
 ./gradlew :app:assembleDebug          # 调试包
-./gradlew :app:testDebugUnitTest      # 纯 JVM 单测（130 个）
+./gradlew :app:testDebugUnitTest      # 纯 JVM 单测（135 个）
 ./gradlew :app:lintDebug              # 静态检查（0 errors）
 ./gradlew :app:assembleRelease        # 未签名 release
 ```
@@ -163,7 +182,7 @@ PASS=$(cat keystore/.storepass)
 $BT/zipalign -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk /tmp/LinkGate-aligned.apk
 $BT/apksigner sign --ks keystore/linkgate-release.jks --ks-key-alias linkgate \
   --ks-pass "pass:$PASS" --key-pass "pass:$PASS" \
-  --out dist/LinkGate-1.1.0.apk /tmp/LinkGate-aligned.apk
+  --out dist/LinkGate-1.1.1.apk /tmp/LinkGate-aligned.apk
 ```
 
 > 换签名密钥会导致无法覆盖升级。请保留 `keystore/linkgate-release.jks` 与 `.storepass`（均在 `.gitignore` 内）。
@@ -171,7 +190,7 @@ $BT/apksigner sign --ks keystore/linkgate-release.jks --ks-key-alias linkgate \
 ## 安装
 
 ```bash
-adb install -r dist/LinkGate-1.1.0.apk
+adb install -r dist/LinkGate-1.1.1.apk
 ```
 
 首次启动会连续弹出系统权限对话框，全部允许即可。
@@ -191,7 +210,7 @@ app/src/main/java/com/xehuri/linkgate/
                                  # 两指连点状态机、兼容垫片注入、密码桥（WebMessageListener）
 app/src/main/assets/             # web-compat.js（现代 API 垫片）、web-passwords.js（表单保存/填充脚本）
 app/src/main/res/xml/            # backup_rules.xml、data_extraction_rules.xml（备份排除敏感数据）
-app/src/test/java/...            # 130 个 JVM 单测
+app/src/test/java/...            # 135 个 JVM 单测
 ```
 
 ## 版本记录
@@ -205,14 +224,18 @@ app/src/test/java/...            # 130 个 JVM 单测
   （网页参数 / 渲染模式 / UA / 手势 / 数据 / 系统）；**双指连点唤醒**（默认 2 次，可配 1–3 次）；
   桌面版视口强制 980px；站点搜索、下移、复制链接、刷新图标、清除本站数据；导出/导入站点；
   渲染进程崩溃恢复；Cookie 快照改增量写；键盘避让；后台暂停页面；备份排除 Cookie 与密码；有图标不再垫色块底。
+- 1.1.1：**文件下载支持**（DownloadManager + blob 消息桥 + data: 原生解码，落系统下载目录 + 完成通知 + 下载目录入口）；
+  首屏长按浮窗改为**在手指位置弹出**（放不下时自动翻转），不再固定屏幕角落。
 
 ## 已知限制
 
 - WebView 版本由系统/厂商提供；老 WebView 上 CSS 新特性（`:has()`、`@container` 等）会降级，JS 新 API 由垫片补齐。
 - 未实现网页屏幕共享（`getDisplayMedia` 需要 MediaProjection 前台服务）。
-- `blob:`/`data:` 下载不支持。
 - 不支持多窗口/弹窗式 WebView，`window.open` 与 `target=_blank` 在当前窗口打开。
 - 密码库无主密码、无云同步；恢复的 Cookie 不带 `HttpOnly`。
 - 「IPv6 优先」只对**显式配置了 IPv6 地址的站点**生效；没配的站点走系统 DNS 解析（由 Chromium 自行选择协议）。
 - 桌面版视图会强制 980px 布局，个别站点可能出现横向滚动或元素错位，可切回「跟随网页」。
+- **CSS 锚点定位**（`anchor-name` / `position-anchor` / `anchor()` / `position-area`）需要 Chrome 125+（WebView ≥125）。
+  系统 WebView 124 上，依赖它的网页自定义浮窗（例如 dsh 的长按菜单）会退回到角落位置 —— 这不是 LinkGate 的视图承载问题，
+  在「设置 → 应用 → Android System WebView」升级到 125 以上即可恢复（本机 Chrome 已是 147，但未注册为 WebView 提供者）。
 - 站点数据只存本机；换机请用「导出站点配置 → 从剪贴板导入」。

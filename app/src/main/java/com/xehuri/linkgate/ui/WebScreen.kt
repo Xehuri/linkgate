@@ -77,6 +77,7 @@ import com.xehuri.linkgate.nav.BackAction
 import com.xehuri.linkgate.nav.BackPlanner
 import com.xehuri.linkgate.nav.OpenTargetPlanner
 import com.xehuri.linkgate.web.ExternalLinks
+import com.xehuri.linkgate.web.DownloadSaver
 import com.xehuri.linkgate.web.SiteDataCleaner
 import com.xehuri.linkgate.web.WebHost
 import com.xehuri.linkgate.web.WebViewFactory
@@ -414,6 +415,16 @@ fun WebScreen(
                                     menuExpanded = false
                                     controlsVisible = false
                                     showClearSiteData = true
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("打开下载目录") },
+                                onClick = {
+                                    menuExpanded = false
+                                    controlsVisible = false
+                                    if (!DownloadSaver.openDownloadsUi(context)) {
+                                        Toast.makeText(context, "没有找到可用的文件管理器", Toast.LENGTH_SHORT).show()
+                                    }
                                 },
                             )
                             DropdownMenuItem(

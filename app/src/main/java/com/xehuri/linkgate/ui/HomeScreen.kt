@@ -44,8 +44,6 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -53,6 +51,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -65,17 +64,32 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import com.xehuri.linkgate.data.Site
-import com.xehuri.linkgate.data.UrlNormalizer
+import kotlin.math.roundToInt
+
+/** 长按浮窗的目标：哪个站点 + 手指在根坐标系里的位置（浮窗就弹在这里） */
+private data class CardMenuTarget(val site: Site, val anchor: Offset)
 
 /**
- * 站点列表首屏：网格展示、搜索过滤、长按卡片操作（置顶/上移/编辑/复制链接/刷新图标/删除）、
+ * 站点列表首屏：网格展示、搜索过滤、长按卡片在**手指位置**弹出操作浮窗、
  * 右下角添加按钮。在这个界面按返回键 = 退出应用。
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,6 +117,7 @@ fun HomeScreen(
     var editingSite by remember { mutableStateOf<Site?>(null) }
     var deletingSite by remember { mutableStateOf<Site?>(null) }
     var clearingSite by remember { mutableStateOf<Site?>(null) }
+    var menuTarget by remember { mutableStateOf<CardMenuTarget?>(null) }
     var query by remember { mutableStateOf("") }
 
     BackHandler { onExit() }
@@ -205,20 +220,31 @@ fun HomeScreen(
                                 site = site,
                                 iconVersion = iconVersion,
                                 onOpen = { onOpenSite(site) },
-                                onMoveTop = { onMoveTop(site) },
-                                onMoveUp = { onMoveUp(site) },
-                                onMoveDown = { onMoveDown(site) },
-                                onEdit = { editingSite = site },
-                                onCopyLink = { onCopyLink(site) },
-                                onRefreshIcon = { onRefreshIcon(site) },
-                                onClearSiteData = { clearingSite = site },
-                                onDelete = { deletingSite = site },
+                                onLongPress = { anchor -> menuTarget = CardMenuTarget(site, anchor) },
                             )
                         }
                     }
                 }
             }
         }
+    }
+
+    // 长按浮窗：整屏只保留一个，弹在手指按下的位置（超出屏幕时自动往里收）
+    menuTarget?.let { target ->
+        SiteCardMenu(
+            target = target,
+            onDismiss = { menuTarget = null },
+            actions = listOf(
+                MenuAction("置顶", Icons.Filled.Star) { onMoveTop(target.site) },
+                MenuAction("上移", Icons.Filled.KeyboardArrowUp) { onMoveUp(target.site) },
+                MenuAction("下移", Icons.Filled.KeyboardArrowDown) { onMoveDown(target.site) },
+                MenuAction("编辑", Icons.Filled.Edit) { editingSite = target.site },
+                MenuAction("复制链接", Icons.Filled.Share) { onCopyLink(target.site) },
+                MenuAction("刷新图标", Icons.Filled.Refresh) { onRefreshIcon(target.site) },
+                MenuAction("清除本站数据", Icons.Filled.Clear) { clearingSite = target.site },
+                MenuAction("删除", Icons.Filled.Delete) { deletingSite = target.site },
+            ),
+        )
     }
 
     if (showAddDialog) {
@@ -272,131 +298,167 @@ private fun SiteCard(
     site: Site,
     iconVersion: Int,
     onOpen: () -> Unit,
-    onMoveTop: () -> Unit,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
-    onEdit: () -> Unit,
-    onCopyLink: () -> Unit,
-    onRefreshIcon: () -> Unit,
-    onClearSiteData: () -> Unit,
-    onDelete: () -> Unit,
+    onLongPress: (Offset) -> Unit,
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
     val subtitle = remember(site.url, site.description) { site.subtitleText() }
-    val host = remember(site.url) { UrlNormalizer.titleFromUrl(site.url) }
+    var coordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var pressPosition by remember { mutableStateOf(Offset.Zero) }
 
-    Box {
-        Card(
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 92.dp)
+            .onGloballyPositioned { coordinates = it }
+            // 只观测按下位置，不消费事件：点击/长按仍由 combinedClickable 处理（保留水波纹）
+            .recordPressPosition { position -> pressPosition = position }
+            .combinedClickable(
+                onClick = onOpen,
+                onLongClick = {
+                    // 用「窗口坐标」而不是 composition 根坐标：Popup 的 offset 就是相对窗口原点的，
+                    // 两者混用会让浮窗整体偏上/偏下（状态栏高度那一点点）。
+                    val anchor = coordinates?.localToWindow(pressPosition) ?: pressPosition
+                    onLongPress(anchor)
+                },
+            ),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 92.dp)
-                .combinedClickable(onClick = onOpen, onLongClick = { menuOpen = true }),
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // 网站 favicon；拿不到则首字母色块兜底
-                SiteIcon(site = site, iconVersion = iconVersion, size = 30.dp)
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
+            // 网站 favicon；拿不到则首字母色块兜底
+            SiteIcon(site = site, iconVersion = iconVersion, size = 30.dp)
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = site.title,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    maxLines = if (site.description.isBlank()) 1 else 2,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (site.hasIpv6) {
+                    Spacer(modifier = Modifier.height(3.dp))
                     Text(
-                        text = site.title,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
+                        text = "IPv6",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = subtitle,
-                        maxLines = if (site.description.isBlank()) 1 else 2,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    if (site.hasIpv6) {
-                        Spacer(modifier = Modifier.height(3.dp))
+                }
+            }
+        }
+    }
+}
+
+/** 按下位置观测器：Initial 阶段不消费事件，只记录触点 */
+private fun Modifier.recordPressPosition(onPress: (Offset) -> Unit): Modifier =
+    this.pointerInput(Unit) {
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                if (event.type == PointerEventType.Press) {
+                    event.changes.firstOrNull()?.let { onPress(it.position) }
+                }
+            }
+        }
+    }
+
+private data class MenuAction(val label: String, val icon: ImageVector, val onClick: () -> Unit)
+
+/**
+ * 长按操作浮窗：以手指位置为左上角弹出（和 Chrome 的长按菜单一致），
+ * 靠近屏幕边缘时自动往里收，保证完整可见。
+ */
+@Composable
+private fun SiteCardMenu(
+    target: CardMenuTarget,
+    onDismiss: () -> Unit,
+    actions: List<MenuAction>,
+) {
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val menuWidth = 196.dp
+    val itemHeight = 44.dp
+    val padding = 4.dp
+    val estimatedHeight = itemHeight * actions.size + padding * 2
+
+    // 屏幕像素尺寸：只用于「别把浮窗顶出屏幕」的裁剪
+    val screenWidthPx = with(density) { configuration.screenWidthDp.dp.roundToPx() }
+    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.roundToPx() }
+    val menuWidthPx = with(density) { menuWidth.roundToPx() }
+    val menuHeightPx = with(density) { estimatedHeight.roundToPx() }
+    val marginPx = with(density) { 8.dp.roundToPx() }
+
+    // 和 Chrome 一样：默认以触点作为浮窗左上角；右边/下面放不下时翻到左侧/上方，
+    // 让浮窗始终「贴着手」，而不是被挤到屏幕角落。
+    val anchorX = target.anchor.x.roundToInt()
+    val anchorY = target.anchor.y.roundToInt()
+    val maxX = (screenWidthPx - menuWidthPx - marginPx).coerceAtLeast(marginPx)
+    val maxY = (screenHeightPx - menuHeightPx - marginPx).coerceAtLeast(marginPx)
+    var x = anchorX
+    if (x + menuWidthPx + marginPx > screenWidthPx) x = anchorX - menuWidthPx
+    x = x.coerceIn(marginPx, maxX)
+    var y = anchorY
+    if (y + menuHeightPx + marginPx > screenHeightPx) y = anchorY - menuHeightPx
+    y = y.coerceIn(marginPx, maxY)
+
+    android.util.Log.d(
+        "LinkGateMenu",
+        "anchor=${target.anchor} screen=${screenWidthPx}x${screenHeightPx} menu=${menuWidthPx}x${menuHeightPx} -> ($x, $y)",
+    )
+    Popup(
+        offset = IntOffset(x, y),
+        onDismissRequest = onDismiss,
+        properties = PopupProperties(focusable = true),
+    ) {
+        Surface(
+            modifier = Modifier.width(menuWidth),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 3.dp,
+            shadowElevation = 10.dp,
+        ) {
+            Column(modifier = Modifier.padding(vertical = padding)) {
+                actions.forEach { action ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onDismiss()
+                                action.onClick()
+                            }
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = action.icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = if (action.label == "删除") MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = "IPv6",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            text = action.label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (action.label == "删除") MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onSurface,
                         )
                     }
                 }
             }
-        }
-
-        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-            DropdownMenuItem(
-                text = { Text("置顶") },
-                leadingIcon = { Icon(Icons.Filled.Star, contentDescription = null) },
-                onClick = {
-                    menuOpen = false
-                    onMoveTop()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text("上移") },
-                leadingIcon = { Icon(Icons.Filled.KeyboardArrowUp, contentDescription = null) },
-                onClick = {
-                    menuOpen = false
-                    onMoveUp()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text("下移") },
-                leadingIcon = { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null) },
-                onClick = {
-                    menuOpen = false
-                    onMoveDown()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text("编辑") },
-                leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
-                onClick = {
-                    menuOpen = false
-                    onEdit()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text("复制链接") },
-                leadingIcon = { Icon(Icons.Filled.Share, contentDescription = null) },
-                onClick = {
-                    menuOpen = false
-                    onCopyLink()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text("刷新图标") },
-                leadingIcon = { Icon(Icons.Filled.Refresh, contentDescription = null) },
-                onClick = {
-                    menuOpen = false
-                    onRefreshIcon()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text("清除本站数据") },
-                leadingIcon = { Icon(Icons.Filled.Clear, contentDescription = null) },
-                onClick = {
-                    menuOpen = false
-                    onClearSiteData()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text("删除") },
-                leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
-                onClick = {
-                    menuOpen = false
-                    onDelete()
-                },
-            )
         }
     }
 }
@@ -426,6 +488,32 @@ private fun PermissionBanner(missing: Int, onClick: () -> Unit) {
             color = MaterialTheme.colorScheme.onSecondaryContainer,
         )
     }
+}
+
+@Composable
+private fun ClearSiteDataDialog(
+    site: Site,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("清除「${site.title}」的数据？") },
+        text = {
+            Text(
+                "会清除该站点的 Cookie、本地存储、缓存与已保存的密码，之后需要重新登录。" +
+                    "站点本身仍保留在列表里。",
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("清除", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
 }
 
 @Composable
@@ -486,30 +574,4 @@ private fun EmptyState(onAdd: () -> Unit, modifier: Modifier = Modifier) {
             Text("添加第一个网页")
         }
     }
-}
-
-@Composable
-private fun ClearSiteDataDialog(
-    site: Site,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("清除「${site.title}」的数据？") },
-        text = {
-            Text(
-                "会清除该站点的 Cookie、本地存储、缓存与已保存的密码，之后需要重新登录。" +
-                    "站点本身仍保留在列表里。",
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("清除", color = MaterialTheme.colorScheme.error)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
-        },
-    )
 }

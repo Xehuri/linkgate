@@ -103,6 +103,17 @@ object WebViewFactory {
             } catch (e: Throwable) {
                 Log.w(TAG, "注册密码桥失败", e)
             }
+            // 下载桥：页面里的 blob:/data: 下载由此交给原生落盘（见 DownloadBridge）
+            try {
+                WebViewCompat.addWebMessageListener(
+                    webView,
+                    "LinkGateDownload",
+                    setOf("*"),
+                    DownloadBridge(context, host),
+                )
+            } catch (e: Throwable) {
+                Log.w(TAG, "注册下载桥失败", e)
+            }
         }
 
         host.webView = webView

@@ -77,6 +77,7 @@ fun SettingsScreen(
     onClearWebData: () -> Unit,
     onExportSites: () -> Unit,
     onImportSites: () -> Unit,
+    onOpenDownloads: () -> Unit,
 ) {
     BackHandler { onBack() }
 
@@ -384,6 +385,12 @@ fun SettingsScreen(
                         title = "从剪贴板导入站点",
                         summary = "自动跳过已存在的地址，不会覆盖现有站点",
                         onClick = onImportSites,
+                    )
+                    Divider()
+                    ActionRow(
+                        title = "打开下载目录",
+                        summary = "网页下载的文件都保存在系统「下载」目录里",
+                        onClick = onOpenDownloads,
                     )
                 }
             }

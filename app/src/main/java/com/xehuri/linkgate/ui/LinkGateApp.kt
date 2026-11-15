@@ -37,6 +37,7 @@ import com.xehuri.linkgate.nav.OpenTargetPlanner
 import com.xehuri.linkgate.perm.PermissionPlanner
 import com.xehuri.linkgate.perm.RuntimePermissions
 import com.xehuri.linkgate.web.CookieStore
+import com.xehuri.linkgate.web.DownloadSaver
 import com.xehuri.linkgate.web.SiteDataCleaner
 import com.xehuri.linkgate.web.WebViewFactory
 import kotlinx.coroutines.Dispatchers
@@ -227,6 +228,11 @@ fun LinkGateApp(store: SiteStore, settingsStore: SettingsStore, onExit: () -> Un
                 onClearWebData = { clearWebData() },
                 onExportSites = { exportSites() },
                 onImportSites = { importSites() },
+                onOpenDownloads = {
+                    if (!DownloadSaver.openDownloadsUi(context)) {
+                        toast("没有找到可用的文件管理器")
+                    }
+                },
             )
 
             activeSite == null -> HomeScreen(
