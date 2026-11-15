@@ -1,0 +1,15 @@
+# Gradle / Android Studio
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+captures/
+
+# 签名材料不进版本库
+keystore/
+
+# 构建产物
+dist/
+*.apk
+*.idsig

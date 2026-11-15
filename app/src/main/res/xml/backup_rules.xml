@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 11 及以下的备份规则（fullBackupContent）。
+
+  排除项说明：
+  - linkgate_cookies：站点 Cookie 头是明文，含会话凭据，绝不能进云端备份；
+  - linkgate_passwords：密码库用 Android Keystore 加密，而 Keystore 密钥不参与备份，
+    备份出去的数据在别的设备上根本解不开，恢复后只会得到「空密码库」；
+  - site_icons：只是 favicon 缓存，可随时重新抓取，不必占用备份额度。
+
+  站点列表与全局设置（linkgate_prefs / linkgate_settings）保留备份，换机后仍然可用。
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="linkgate_cookies.xml" />
+    <exclude domain="sharedpref" path="linkgate_passwords.xml" />
+    <exclude domain="file" path="site_icons" />
+</full-backup-content>
