@@ -83,8 +83,8 @@ class BackPlannerTest {
 
     @Test
     fun `重定向后的真实入口可以正常退出`() {
-        // 模拟 dsh.xehuri.top 场景：入口 URL 302 到 /login，落地页记为 /login
-        val realLanding = "https://dsh.xehuri.top/login"
+        // 模拟入口 URL 302 到 /login 的场景：落地页记为 /login
+        val realLanding = "https://example.com/login"
         assertEquals(
             BackAction.CLOSE_WEB_SCREEN,
             BackPlanner.inWebScreen(canGoBackInHistory = true, currentUrl = realLanding, landingUrl = realLanding),
@@ -92,7 +92,7 @@ class BackPlannerTest {
         // 还没记录落地页时，历史里还有上一级 → 先回上一级
         assertEquals(
             BackAction.WEB_GO_BACK,
-            BackPlanner.inWebScreen(true, realLanding, "https://dsh.xehuri.top"),
+            BackPlanner.inWebScreen(true, realLanding, "https://example.com"),
         )
     }
 

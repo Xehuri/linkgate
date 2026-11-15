@@ -7,7 +7,7 @@ import org.junit.Test
 class PasswordCodecTest {
 
     private val samples = listOf(
-        PasswordEntry("https://dsh.xehuri.top", "axeuh", "p@ss\tword", 1_700_000_000_000L),
+        PasswordEntry("https://example.com", "user", "p@ss\tword", 1_700_000_000_000L),
         PasswordEntry("http://127.0.0.1:18081", "", "simple", 1_700_000_000_001L),
     )
 
@@ -39,6 +39,6 @@ class PasswordCodecTest {
         val broken = good + "\n坏行没有制表符\nnot\tbase64\tbase64\tnot-a-number"
         val decoded = PasswordCodec.decode(broken)
         assertEquals(1, decoded.size)
-        assertEquals("axeuh", decoded.first().username)
+        assertEquals("user", decoded.first().username)
     }
 }

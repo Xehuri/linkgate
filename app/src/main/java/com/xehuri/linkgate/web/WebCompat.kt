@@ -9,7 +9,7 @@ import androidx.webkit.WebViewFeature
 /**
  * 老版系统 WebView 的 JS 兼容垫片注入。
  *
- * 小米平板 5 等设备的系统 WebView 可能停在 Chrome 104 左右，而 dsh 客户端插件会用到
+ * 部分设备的系统 WebView 可能停在 Chrome 104 左右，而现代网页应用会用到
  * `AbortSignal.any`（Chrome 116）等新 API，直接报 "TypeError: ... is not a function"，
  * 表现为「页面渲染出来了但功能不正常」。
  *

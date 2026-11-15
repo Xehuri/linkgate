@@ -4,7 +4,7 @@ import java.net.URI
 import java.util.Base64
 
 /**
- * 一条已保存的登录凭据。origin 形如 `https://dsh.xehuri.top`（含端口），
+ * 一条已保存的登录凭据。origin 形如 `https://example.com`（含端口），
  * 只在该 origin 下才会被回填，避免跨站泄露。
  */
 data class PasswordEntry(

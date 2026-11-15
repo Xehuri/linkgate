@@ -56,7 +56,7 @@ object WebViewFactory {
         // 关键修复：必须显式给 MATCH_PARENT 布局参数。
         // Compose 的 AndroidView 默认会先用 WRAP_CONTENT 量一次，WebView 以 0 高度初始化
         // 了视口，导致页面里的 100vh / 100dvh / height:100% 全部解析成 0。
-        // 普通文档流页面看起来正常，但 dsh 这类整页依赖 height:100% 的 SPA 会直接白屏。
+        // 普通文档流页面看起来正常，但 整页依赖 height:100% 的 SPA 会直接白屏。
         webView.layoutParams = WebHost.matchParentParams()
 
         applySettings(webView, settings)

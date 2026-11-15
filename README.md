@@ -61,7 +61,7 @@ Cookie 会落盘并按站点恢复；内置密码管理器（保存 + 自动填�
 - **自动回退**：IPv6 地址打不开（超时/拒绝连接等）时，自动改用主地址并提示一次，不会让用户卡在错误页；
 - 地址规范化支持 IPv6 字面量：`[2408:...::1]:8080`、`2408:...::1`、`https://[2408:...::1]/path` 都能识别。
 
-真机验证：站点 IPv6 地址指到本机 `240e:...:18083` → 页面标题「IPv6 直连成功」，客户端地址为该手机的 IPv6；
+真机验证：站点 IPv6 地址指到同一局域网内的 IPv6 主机 → 页面标题「IPv6 直连成功」，客户端地址为该手机的 IPv6；
 换成不可达地址 `[::2]:18081` → 日志出现 `IPv6 回退：net::ERR_CONNECTION_TIMED_OUT → 主地址`，页面回落到主地址。
 
 ### 5. 返回键语义
@@ -140,7 +140,7 @@ Manifest 预先声明：`RECORD_AUDIO`、`CAMERA`、`ACCESS_FINE/COARSE_LOCATION
 
 ### 11. 老版系统 WebView 兼容垫片
 
-部分设备（如小米平板 5，WebView **104**）缺少 dsh 客户端插件使用的现代 API，会报
+部分设备（系统 WebView 停在 **104**）缺少现代网页用到的 API，会报
 `TypeError: AbortSignal.any is not a function` —— 页面渲染出来但功能不可用。
 
 LinkGate 在**文档开始**（`WebViewCompat.addDocumentStartJavaScript`）注入 `assets/web-compat.js`，
@@ -152,7 +152,7 @@ feature-detect 后补齐：`AbortSignal.any/timeout`、`Promise.withResolvers/tr
 桌面版视图另注入 `DesktopViewport`：把页面 viewport meta 强制改写为 `width=980`，
 解决「换了桌面 UA 但页面自带 `width=device-width`，布局仍是手机宽度」的问题。
 
-真机验证（平板 WebView 104）：补丁后 `typeof AbortSignal.any === 'function'`，dsh 重载**零 JS 异常/零错误日志**。
+真机验证（平板 WebView 104）：补丁后 `typeof AbortSignal.any === 'function'`，页面重载**零 JS 异常/零错误日志**。
 手机（WebView 124）：桌面版模式下 `window.innerWidth = 980`，UA 为 `Windows NT 10.0 ... Chrome/124.0.0.0`。
 
 注意：CSS 层的 `:has()`、`@container`、`color-mix()`、CSS 嵌套等无法运行时补齐，老 WebView 上部分样式会降级。
@@ -217,7 +217,7 @@ app/src/test/java/...            # 135 个 JVM 单测
 
 - 1.0.1：返回栈改为「入口落地页优先」；网页界面沉浸式全屏；Cookie flush + 快照恢复；卡片标题两行。
 - 1.0.2：修复 **Compose `AndroidView` 承载 WebView 导致视口高度为 0**（显式 `MATCH_PARENT`，
-  否则 dsh 这类依赖 `height:100%` 的 SPA 白屏）；悬浮控件默认隐藏 + 两指轻点呼出。
+  否则依赖 `height:100%` 的 SPA 会白屏）；悬浮控件默认隐藏 + 两指轻点呼出。
 - 1.0.3/1.0.4：平板首屏自适应列数；卡片 favicon 图标（内联，不独占一行）；老 WebView 兼容垫片；
   密码管理器（保存提示 + 自动填充 + 加密存储 + 管理页）。
 - 1.1.0：站点**描述**与**IPv6 地址**字段；**IPv6 优先**（含不可达自动回退）；**设置界面**
@@ -236,6 +236,6 @@ app/src/test/java/...            # 135 个 JVM 单测
 - 「IPv6 优先」只对**显式配置了 IPv6 地址的站点**生效；没配的站点走系统 DNS 解析（由 Chromium 自行选择协议）。
 - 桌面版视图会强制 980px 布局，个别站点可能出现横向滚动或元素错位，可切回「跟随网页」。
 - **CSS 锚点定位**（`anchor-name` / `position-anchor` / `anchor()` / `position-area`）需要 Chrome 125+（WebView ≥125）。
-  系统 WebView 124 上，依赖它的网页自定义浮窗（例如 dsh 的长按菜单）会退回到角落位置 —— 这不是 LinkGate 的视图承载问题，
+  系统 WebView 124 上，依赖它的网页自定义浮窗（例如某些网页应用的自定义长按菜单）会退回到角落位置 —— 这不是 LinkGate 的视图承载问题，
   在「设置 → 应用 → Android System WebView」升级到 125 以上即可恢复（本机 Chrome 已是 147，但未注册为 WebView 提供者）。
 - 站点数据只存本机；换机请用「导出站点配置 → 从剪贴板导入」。

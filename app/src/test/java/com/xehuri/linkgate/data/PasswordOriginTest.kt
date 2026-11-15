@@ -8,7 +8,7 @@ class PasswordOriginTest {
 
     @Test
     fun `去掉路径查询与锚点`() {
-        assertEquals("https://dsh.xehuri.top", PasswordOrigin.fromUrl("https://dsh.xehuri.top/login?next=/x#y"))
+        assertEquals("https://example.com", PasswordOrigin.fromUrl("https://example.com/login?next=/x#y"))
     }
 
     @Test

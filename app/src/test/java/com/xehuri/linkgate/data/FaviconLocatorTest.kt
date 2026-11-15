@@ -25,8 +25,8 @@ class FaviconLocatorTest {
     @Test
     fun `兜底候选是 origin 下的 favicon`() {
         assertEquals(
-            listOf("https://dsh.xehuri.top/favicon.ico"),
-            FaviconLocator.candidateUrls("https://dsh.xehuri.top/plugins/client.js"),
+            listOf("https://example.com/favicon.ico"),
+            FaviconLocator.candidateUrls("https://example.com/plugins/client.js"),
         )
     }
 

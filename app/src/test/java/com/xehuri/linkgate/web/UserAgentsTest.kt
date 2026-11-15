@@ -10,7 +10,7 @@ class UserAgentsTest {
 
     /** 模拟平板上的老 WebView（104） */
     private val defaultUa =
-        "Mozilla/5.0 (Linux; Android 13; 21051182C Build/TKQ1.220829.002; wv) " +
+        "Mozilla/5.0 (Linux; Android 13; TestDevice Build/TESTBUILD; wv) " +
             "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/104.0.5112.97 Safari/537.36"
 
     @Test

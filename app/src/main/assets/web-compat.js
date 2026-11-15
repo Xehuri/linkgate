@@ -1,8 +1,8 @@
 /*
  * LinkGate WebView 兼容垫片（document-start 注入）。
  *
- * 背景：部分设备的系统 WebView 较旧（例如小米平板 5 自带 WebView 104），
- * 而 dsh 的客户端插件用到了 Chrome 105~125 才有的现代 API，会直接抛
+ * 背景：部分设备的系统 WebView 较旧（例如停在 WebView 104），
+ * 而现代网页应用会用 Chrome 105~125 才有的 API，会直接抛
  * "TypeError: AbortSignal.any is not a function"，导致界面渲染出来但功能不可用。
  *
  * 原则：
