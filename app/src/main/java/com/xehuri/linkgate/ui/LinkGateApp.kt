@@ -385,6 +385,15 @@ fun LinkGateApp(store: SiteStore, settingsStore: SettingsStore, onExit: () -> Un
                 onExit = onExit,
             )
 
+            settings.engine == com.xehuri.linkgate.data.BrowserEngine.GECKO -> GeckoScreen(
+                site = activeSite,
+                settings = settings,
+                onClose = {
+                    openSiteId = null
+                    openPlan = null
+                },
+            )
+
             else -> {
                 val plan = remember(activeSite.id, settings.preferIpv6, openPlan) {
                     openPlan ?: OpenTargetPlanner.plan(activeSite, settings.preferIpv6, Ipv6.isAvailableOnDevice())

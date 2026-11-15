@@ -7,6 +7,7 @@ coreKtx = "1.13.1"
 activityCompose = "1.9.3"
 junit = "4.13.2"
 androidxWebkit = "1.13.0"
+geckoview = "136.0.20250310180126"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -18,6 +19,8 @@ compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling
 compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core", version.ref = "composeUi" }
 androidx-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "androidxWebkit" }
+# 只取 arm64 单 ABI 包：全 ABI 包 244MB，单 ABI 91.5MB
+geckoview-arm64 = { group = "org.mozilla.geckoview", name = "geckoview-arm64-v8a", version.ref = "geckoview" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]

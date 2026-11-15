@@ -12,6 +12,9 @@ enum class ViewMode { SYSTEM, DESKTOP, MOBILE }
 /** 网页深浅色：跟随应用主题 / 永远浅色 / 永远深色 / 不做任何处理 */
 enum class DarkModeSetting { SYSTEM, ALWAYS_LIGHT, ALWAYS_DARK, OFF }
 
+/** 浏览器内核：内置 Gecko（不受系统 WebView 版本限制）或系统 WebView */
+enum class BrowserEngine { GECKO, WEBVIEW }
+
 /** 浏览器标识（UA）策略 */
 enum class UserAgentMode { FOLLOW_VIEW, SYSTEM, DESKTOP, CUSTOM }
 
@@ -45,6 +48,10 @@ data class AppSettings(
     val thirdPartyCookies: Boolean = true,
     /** 允许网页自动播放音视频（不要求用户手势） */
     val mediaAutoplay: Boolean = true,
+
+    // ---------- 内核 ----------
+    /** 用哪个渲染内核打开网页。默认内置 Gecko：系统 WebView 版本随厂商而定，老设备上会缺新特性 */
+    val engine: BrowserEngine = BrowserEngine.GECKO,
 
     // ---------- 渲染 ----------
     val viewMode: ViewMode = ViewMode.SYSTEM,

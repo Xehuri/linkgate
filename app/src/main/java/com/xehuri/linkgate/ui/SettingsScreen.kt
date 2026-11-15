@@ -47,6 +47,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import com.xehuri.linkgate.data.AppSettings
+import com.xehuri.linkgate.data.BrowserEngine
 import com.xehuri.linkgate.data.CacheMode
 import com.xehuri.linkgate.data.DarkModeSetting
 import com.xehuri.linkgate.data.MixedContentLevel
@@ -262,6 +263,17 @@ fun SettingsScreen(
             item { SectionTitle("渲染") }
             item {
                 SettingsCard {
+                    OptionRow(
+                        title = "浏览器内核",
+                        options = listOf(
+                            BrowserEngine.GECKO to "内置 Gecko（推荐）",
+                            BrowserEngine.WEBVIEW to "系统 WebView",
+                        ),
+                        selected = settings.engine,
+                        onSelect = { onChange(settings.copy(engine = it)) },
+                        summary = "内置 Gecko 不受系统 WebView 版本限制（老设备也能用新特性），但需要重新登录站点",
+                    )
+                    Divider()
                     OptionRow(
                         title = "视图模式",
                         options = listOf(

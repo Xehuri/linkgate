@@ -6,9 +6,21 @@ Cookie 会落盘并按站点恢复；内置密码管理器（保存 + 自动填�
 
 - 应用名：**LinkGate**
 - 包名：`com.xehuri.linkgate`
-- 版本：1.1.4（versionCode 10）
+- 版本：2.0.0（versionCode 11，**内置 Gecko 内核**）
 - minSdk 26（Android 8.0）/ targetSdk 34 / compileSdk 36
-- 安装包：`dist/LinkGate-1.1.4.apk`（release，已用专用密钥签名）
+- 安装包：`dist/LinkGate-2.0.0.apk`（release，已用专用密钥签名）
+
+## 内核：内置 Gecko（2.0.0 起）
+
+系统 WebView 的版本由厂商/系统决定（小米平板 5 停在 **104**），缺 CSS 锚点定位等新特性，
+网页里依赖它们的自定义浮层会错位、重页面也更吃 CPU。2.0.0 起把 **GeckoView（Firefox 内核）**
+打进 APK，不再受系统 WebView 限制：
+
+- 设置 → 渲染 → **浏览器内核**：内置 Gecko（默认）/ 系统 WebView，可随时切回
+- 代价：APK 从 6.7MB 涨到 **84MB**（`libxul.so` 单文件 141MB，压缩进包）；安装后引擎解压占用约 150–180MB
+- Cookie 存在 Gecko 自己的 profile 里，**每个站点首次进入需要重新登录**
+- 已接入：沉浸全屏、返回栈（落地页优先）、双指连点呼出控制条、Content-Disposition 下载（进下载管理器）、定位等网页权限
+- 尚未接入（规划中）：密码库的保存/自动填充桥、摄像头麦克风的媒体权限放行、站点图标（Gecko 不上报 favicon）
 
 ## 功能
 
@@ -231,6 +243,8 @@ app/src/test/java/...            # 141 个 JVM 单测
   （网页参数 / 渲染模式 / UA / 手势 / 数据 / 系统）；**双指连点唤醒**（默认 2 次，可配 1–3 次）；
   桌面版视口强制 980px；站点搜索、下移、复制链接、刷新图标、清除本站数据；导出/导入站点；
   渲染进程崩溃恢复；Cookie 快照改增量写；键盘避让；后台暂停页面；备份排除 Cookie 与密码；有图标不再垫色块底。
+- 2.0.0：**内置 GeckoView 内核**（默认引擎，可在设置里切回系统 WebView）；新增 `GeckoEngine`
+  （会话/委托/下载/权限）与 `GeckoScreen`（沉浸 + 控制条 + 返回栈）；APK 84MB。
 - 1.1.4：修「关于」里的版本号显示（`BuildConfig.VERSION_NAME` 是编译期内联常量，增量编译后旧值会残留），
   现在显示 `版本（versionCode）`。
 - 1.1.3：**重页面（dsh 这类 SPA）主线程优化**：键盘避让改用「动画目标 insets」，避免键盘动画期间逐帧缩放

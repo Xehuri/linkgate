@@ -31,6 +31,7 @@ object SettingsCodec {
     private const val KEY_TEXT_ZOOM = "text_zoom"
     private const val KEY_THIRD_PARTY_COOKIES = "third_party_cookies"
     private const val KEY_MEDIA_AUTOPLAY = "media_autoplay"
+    private const val KEY_ENGINE = "engine"
     private const val KEY_VIEW_MODE = "view_mode"
     private const val KEY_HARDWARE_ACCEL = "hardware_accel"
     private const val KEY_DARK_MODE = "dark_mode"
@@ -53,6 +54,7 @@ object SettingsCodec {
             append(KEY_TEXT_ZOOM).append('=').append(s.textZoomPercent).append('\n')
             append(KEY_THIRD_PARTY_COOKIES).append('=').append(bool(s.thirdPartyCookies)).append('\n')
             append(KEY_MEDIA_AUTOPLAY).append('=').append(bool(s.mediaAutoplay)).append('\n')
+            append(KEY_ENGINE).append('=').append(s.engine.name).append('\n')
             append(KEY_VIEW_MODE).append('=').append(s.viewMode.name).append('\n')
             append(KEY_HARDWARE_ACCEL).append('=').append(bool(s.hardwareAcceleration)).append('\n')
             append(KEY_DARK_MODE).append('=').append(s.darkMode.name).append('\n')
@@ -87,6 +89,7 @@ object SettingsCodec {
             textZoomPercent = map.int(KEY_TEXT_ZOOM, defaults.textZoomPercent),
             thirdPartyCookies = map.bool(KEY_THIRD_PARTY_COOKIES, defaults.thirdPartyCookies),
             mediaAutoplay = map.bool(KEY_MEDIA_AUTOPLAY, defaults.mediaAutoplay),
+            engine = map.enum(KEY_ENGINE, defaults.engine),
             viewMode = map.enum(KEY_VIEW_MODE, defaults.viewMode),
             hardwareAcceleration = map.bool(KEY_HARDWARE_ACCEL, defaults.hardwareAcceleration),
             darkMode = map.enum(KEY_DARK_MODE, defaults.darkMode),

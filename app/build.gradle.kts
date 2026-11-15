@@ -12,8 +12,8 @@ android {
         applicationId = "com.xehuri.linkgate"
         minSdk = 26
         targetSdk = 34
-        versionCode = 10
-        versionName = "1.1.4"
+        versionCode = 11
+        versionName = "2.0.0"
     }
 
     signingConfigs {
@@ -51,6 +51,13 @@ android {
         jvmTarget = "17"
     }
 
+    packaging {
+        // GeckoView 的 libxul.so 不压缩时 APK 176MB；压缩进包可以小很多（安装时会解压）
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -68,6 +75,7 @@ android {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.webkit)
+    implementation(libs.geckoview.arm64)
     implementation(libs.androidx.activity.compose)
 
     implementation(platform(libs.compose.bom))
