@@ -6,9 +6,9 @@ Cookie 会落盘并按站点恢复；内置密码管理器（保存 + 自动填�
 
 - 应用名：**LinkGate**
 - 包名：`com.xehuri.linkgate`
-- 版本：1.1.3（versionCode 9）
+- 版本：1.1.4（versionCode 10）
 - minSdk 26（Android 8.0）/ targetSdk 34 / compileSdk 36
-- 安装包：`dist/LinkGate-1.1.3.apk`（release，已用专用密钥签名）
+- 安装包：`dist/LinkGate-1.1.4.apk`（release，已用专用密钥签名）
 
 ## 功能
 
@@ -189,7 +189,7 @@ PASS=$(cat keystore/.storepass)
 $BT/zipalign -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk /tmp/LinkGate-aligned.apk
 $BT/apksigner sign --ks keystore/linkgate-release.jks --ks-key-alias linkgate \
   --ks-pass "pass:$PASS" --key-pass "pass:$PASS" \
-  --out dist/LinkGate-1.1.3.apk /tmp/LinkGate-aligned.apk
+  --out dist/LinkGate-1.1.4.apk /tmp/LinkGate-aligned.apk
 ```
 
 > 换签名密钥会导致无法覆盖升级。请保留 `keystore/linkgate-release.jks` 与 `.storepass`（均在 `.gitignore` 内）。
@@ -197,7 +197,7 @@ $BT/apksigner sign --ks keystore/linkgate-release.jks --ks-key-alias linkgate \
 ## 安装
 
 ```bash
-adb install -r dist/LinkGate-1.1.3.apk
+adb install -r dist/LinkGate-1.1.4.apk
 ```
 
 首次启动会连续弹出系统权限对话框，全部允许即可。
@@ -231,6 +231,8 @@ app/src/test/java/...            # 141 个 JVM 单测
   （网页参数 / 渲染模式 / UA / 手势 / 数据 / 系统）；**双指连点唤醒**（默认 2 次，可配 1–3 次）；
   桌面版视口强制 980px；站点搜索、下移、复制链接、刷新图标、清除本站数据；导出/导入站点；
   渲染进程崩溃恢复；Cookie 快照改增量写；键盘避让；后台暂停页面；备份排除 Cookie 与密码；有图标不再垫色块底。
+- 1.1.4：修「关于」里的版本号显示（`BuildConfig.VERSION_NAME` 是编译期内联常量，增量编译后旧值会残留），
+  现在显示 `版本（versionCode）`。
 - 1.1.3：**重页面（dsh 这类 SPA）主线程优化**：键盘避让改用「动画目标 insets」，避免键盘动画期间逐帧缩放
   WebView；`onConsoleMessage` 只在调试包打日志（JNI 回调里写 logd 很贵）；密码扫描的 MutationObserver
   去抖 500ms（原来每次 DOM 变动都整篇 `querySelectorAll`）。平板实测：键盘/点击场景 janky 4.63%→0.94%、

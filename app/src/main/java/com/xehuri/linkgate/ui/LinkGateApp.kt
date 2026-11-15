@@ -276,7 +276,8 @@ fun LinkGateApp(store: SiteStore, settingsStore: SettingsStore, onExit: () -> Un
                 deviceIpv6Address = remember(showSettings) { Ipv6.firstDeviceAddress() },
                 webViewVersion = webViewVersion,
                 defaultUserAgent = defaultUserAgent,
-                appVersion = BuildConfig.VERSION_NAME,
+                // 版本号是编译期内联常量：加 versionCode 一起显示，顺便强制本文件重编译
+                appVersion = BuildConfig.VERSION_NAME + "（" + BuildConfig.VERSION_CODE + "）",
                 siteCount = sites.size,
                 onOpenSystemSettings = { RuntimePermissions.openAppSettings(context) },
                 onOpenPermissions = {
