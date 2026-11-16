@@ -22,7 +22,6 @@ class SettingsCodecTest {
         viewMode = ViewMode.DESKTOP,
         hardwareAcceleration = false,
         darkMode = DarkModeSetting.ALWAYS_DARK,
-        engine = BrowserEngine.WEBVIEW,
         userAgentMode = UserAgentMode.CUSTOM,
         customUserAgent = "MyAgent/1.0 (x=y)",
     )
@@ -49,7 +48,6 @@ class SettingsCodecTest {
         assertTrue("缩放默认开启", defaults.zoomEnabled)
         assertTrue("硬件加速默认开启", defaults.hardwareAcceleration)
         assertEquals(UserAgentMode.FOLLOW_VIEW, defaults.userAgentMode)
-        assertEquals("默认内置 Gecko 内核", BrowserEngine.GECKO, defaults.engine)
         assertEquals(ViewMode.SYSTEM, defaults.viewMode)
         assertEquals(DarkModeSetting.SYSTEM, defaults.darkMode)
     }
@@ -68,7 +66,6 @@ class SettingsCodecTest {
             append("LINKGATE-SETTINGS/1\n")
             append("prefer_ipv6=1\n")
             append("wake_taps=abc\n")
-            append("engine=MARS\n")
             append("view_mode=MARS\n")
             append("cache_mode=NONSENSE\n")
             append("text_zoom=999\n")
@@ -77,7 +74,6 @@ class SettingsCodecTest {
         assertTrue(decoded.preferIpv6)
         assertEquals(AppSettings.DEFAULT.wakeTapCount, decoded.wakeTapCount)
         assertEquals(ViewMode.SYSTEM, decoded.viewMode)
-        assertEquals("非法内核值回落默认", BrowserEngine.GECKO, decoded.engine)
         assertEquals(CacheMode.DEFAULT, decoded.cacheMode)
         // 越界的数字被夹回上限
         assertEquals(AppSettings.MAX_TEXT_ZOOM, decoded.textZoomPercent)

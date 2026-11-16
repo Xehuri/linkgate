@@ -6,21 +6,39 @@ Cookie 会落盘并按站点恢复；内置密码管理器（保存 + 自动填�
 
 - 应用名：**LinkGate**
 - 包名：`com.xehuri.linkgate`
-- 版本：2.0.0（versionCode 11，**内置 Gecko 内核**）
+- 版本：2.1.0（versionCode 12，系统 WebView 单内核）
 - minSdk 26（Android 8.0）/ targetSdk 34 / compileSdk 36
-- 安装包：`dist/LinkGate-2.0.0.apk`（release，已用专用密钥签名）
+- 安装包：`dist/LinkGate-2.1.0.apk`（release，已用专用密钥签名，约 6.5MB）
 
-## 内核：内置 Gecko（2.0.0 起）
+## 内核：系统 WebView（2.1.0 起移除内置 Gecko）
 
-系统 WebView 的版本由厂商/系统决定（小米平板 5 停在 **104**），缺 CSS 锚点定位等新特性，
-网页里依赖它们的自定义浮层会错位、重页面也更吃 CPU。2.0.0 起把 **GeckoView（Firefox 内核）**
-打进 APK，不再受系统 WebView 限制：
+2.0.0 曾内置 GeckoView 来绕开「系统 WebView 版本太旧」。实测结论是这条路不划算：
 
-- 设置 → 渲染 → **浏览器内核**：内置 Gecko（默认）/ 系统 WebView，可随时切回
-- 代价：APK 从 6.7MB 涨到 **84MB**（`libxul.so` 单文件 141MB，压缩进包）；安装后引擎解压占用约 150–180MB
-- Cookie 存在 Gecko 自己的 profile 里，**每个站点首次进入需要重新登录**
-- 已接入：沉浸全屏、返回栈（落地页优先）、双指连点呼出控制条、Content-Disposition 下载（进下载管理器）、定位等网页权限
-- 尚未接入（规划中）：密码库的保存/自动填充桥、摄像头麦克风的媒体权限放行、站点图标（Gecko 不上报 favicon）
+- 在 MIUI 上 **点输入框就卡死**——Gecko 会以约 100 次/秒反复 `showSoftInput`，输入法（搜狗 / MIUI 安全输入法）
+  被反复 show/hide 后崩溃，`system_server` 的 IMMS 被刷满，App 主线程阻塞在
+  `InputMethodManager.startInputInner → IMMS.startInputOrWindowGainedFocus`，最终 ANR（「LinkGate 没有响应」）；
+- 真正的病根是**系统 WebView 太旧**：网页用到的 `Promise.withResolvers`（Chrome 119+）、`AbortSignal.any`（116+）
+  等新 API 在 WebView 104 上不存在，dsh 这类现代 Web 应用会缺功能（典型症状：文档预览报「文件资源服务不可用」）；
+- 而 WebView 是可以升级的：装一个同签名的新版 `com.google.android.webview` 就生效，输入法一切正常，
+  实测把小米平板 5 从 104 升到 **133.0.6943.138** 后，dsh 的文件预览恢复正常、键盘照常弹出。
+
+所以 2.1.0 **移除 GeckoView**：APK 从 84MB 回到 **6.5MB**，设置里不再有「浏览器内核」选项。
+
+**系统 WebView 太旧怎么办**（应用内「关于」会显示当前 WebView 版本）：
+
+1. 让 Play 商店更新「Android 系统 WebView」（大多数设备默认就有）；
+2. 不能上网更新时，离线装官方包：
+   ```bash
+   adb install -r GoogleWebView-<版本>_min<Sdk>_arm32+64.apk
+   adb shell dumpsys webviewupdate | grep "Current WebView package"   # 确认已生效
+   adb shell pm uninstall com.google.android.webview                  # 回滚：卸载更新回到系统自带版本
+   ```
+   选包要挑 **standalone 版**（APK 内包含 `lib/arm64-v8a/libwebviewchromium.so`）；带
+   `com.google.android.trichromelibrary` 依赖的包会报 `INSTALL_FAILED_MISSING_SHARED_LIBRARY`。
+3. 实在没法升级：LinkGate 会注入 `assets/web-compat.js` 补一部分新 API（见后文「老版系统 WebView 兼容垫片」），
+   CSS 新语法无法运行时补齐，只能降级。
+
+> 参考：宏归档仓库 <https://github.com/JonaNorman/WebViewPackage>（releases tag `google`）收集了各厂商 WebView 安装包。
 
 ## 功能
 
@@ -243,8 +261,10 @@ app/src/test/java/...            # 141 个 JVM 单测
   （网页参数 / 渲染模式 / UA / 手势 / 数据 / 系统）；**双指连点唤醒**（默认 2 次，可配 1–3 次）；
   桌面版视口强制 980px；站点搜索、下移、复制链接、刷新图标、清除本站数据；导出/导入站点；
   渲染进程崩溃恢复；Cookie 快照改增量写；键盘避让；后台暂停页面；备份排除 Cookie 与密码；有图标不再垫色块底。
-- 2.0.0：**内置 GeckoView 内核**（默认引擎，可在设置里切回系统 WebView）；新增 `GeckoEngine`
-  （会话/委托/下载/权限）与 `GeckoScreen`（沉浸 + 控制条 + 返回栈）；APK 84MB。
+- 2.1.0：**移除内置 GeckoView**（MIUI 上点输入框会 ANR，见「内核」一节），回到系统 WebView 单内核；
+  APK 84MB → **6.5MB**；设置里去掉「浏览器内核」选项。配套方案：把系统 WebView 升到 119+（平板实测 133）。
+- 2.0.0：内置 GeckoView 内核（默认引擎，可在设置里切回系统 WebView）；`GeckoEngine`（会话/委托/下载/权限）
+  与 `GeckoScreen`（沉浸 + 控制条 + 返回栈）；APK 84MB。**2.1.0 已放弃该方案**。
 - 1.1.4：修「关于」里的版本号显示（`BuildConfig.VERSION_NAME` 是编译期内联常量，增量编译后旧值会残留），
   现在显示 `版本（versionCode）`。
 - 1.1.3：**重页面（dsh 这类 SPA）主线程优化**：键盘避让改用「动画目标 insets」，避免键盘动画期间逐帧缩放
